@@ -1,2 +1,0 @@
-# SensorManager
-SensorManager
