@@ -5,12 +5,15 @@
 #include <Ethernet.h> // include ethernet shield library
 #include <SPI.h>
 
+int RELAY = A5;
+
 int groundHumiditySensorInputPin = 0; //analogRead 0 is the analog pin where A0 is connected
 int scheduler = 20000;
 int defaultDelay = 2000;
 int id = 1; // id of the data that read by sensors
 
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+byte mac[] = { 
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 //char serverName[] = "45.55.40.47/planten"; // server domain
 IPAddress server(45,55,40,47);
 //String ipServer = "45.55.40.47/planten";
@@ -26,6 +29,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 void setup()
 {
+  pinMode(RELAY, OUTPUT);
   Serial.begin(9600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
@@ -101,13 +105,13 @@ void luchtVochtTemp() {
     Serial.println("Failed to read from DHT sensor!");
     return;
   }
-  
+
   String airTemp = String((int)t, (unsigned char)DEC);
   String airHum = String((int)h, (unsigned char)DEC);
-  
+
   float hif = dht.computeHeatIndex(f, h); // Compute heat index in Fahrenheit (the default)
   float hic = dht.computeHeatIndex(t, h, false); // Compute heat index in Celsius (isFahreheit = false)
-  
+
   jsonRequest = jsonRequest + "\"temperature\": [{ \"value\": " + airTemp + ",\"unit\": \"C\"}], \"air_humidity\": [{ \"value\": " + airHum + "}],";
 
   Serial.print("Air Humidity: ");
@@ -126,11 +130,11 @@ void luchtVochtTemp() {
 }
 
 /**
-  Method to postData to Webservice
-*/
+ * Method to postData to Webservice
+ */
 void postData() {
   //String jsonRequest = "{\"temperature\": [{ \"value\": 6,\"unit\": \"C\", \"timestamp\": 1444498560}], \"air_humidity\": [{ \"value\": 70, \"timestamp\": 1444498560}], \"ground_humidity\": [{ \"value\": 80, \"timestamp\": 1444498560}]}";
-    
+
   if (client.connect(server, serverPort)) { // REPLACE WITH YOUR SERVER ADDRESS
     Serial.println(F("Making HTTP request..."));
     client.println("POST /planten/create HTTP/1.1");
@@ -144,7 +148,8 @@ void postData() {
     Serial.println(jsonRequest);
     client.print(jsonRequest); 
     Serial.println("posted...");
-  } else {
+  } 
+  else {
     Serial.println("Connection failed to post");
     Serial.println("Disconnecting.");
     client.stop();
@@ -154,4 +159,13 @@ void postData() {
     client.stop();	// DISCONNECT FROM THE SERVER
   }
 }
+
+void pompOn(){
+  digitalWrite(RELAY, HIGH);
+}
+
+void pompOff(){
+  digitalWrite(RELAY, LOW);
+}
+
 
