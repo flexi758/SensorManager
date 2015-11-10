@@ -5,7 +5,15 @@
 #include <Ethernet.h> // include ethernet shield library
 #include <SPI.h>
 
+#include <Servo.h> 
+
+Servo myservo;  // create servo object to control a servo. A maximum of eight servo objects can be created 
+
 int RELAY = A5;
+
+int servoPin = 8;
+int timer = 0;
+int pos;
 
 int groundHumiditySensorInputPin = 0; //analogRead 0 is the analog pin where A0 is connected
 int scheduler = 20000;
@@ -31,6 +39,8 @@ void setup()
 {
   pinMode(RELAY, OUTPUT);
   Serial.begin(9600);
+  myservo.attach(servoPin);
+
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
@@ -72,7 +82,10 @@ void loop()
   jsonRequest = "";
 
   id = id + 1;
+  pompOn();
+  setSeedState(true);
   delay(scheduler);
+  pompOff();
 }
 
 void grondMeting() {
@@ -167,5 +180,50 @@ void pompOn(){
 void pompOff(){
   digitalWrite(RELAY, LOW);
 }
+
+void setSeedState(bool state){
+  if(!state){
+    digitalWrite(servoPin,LOW);
+  }
+  if(state){
+    digitalWrite(servoPin,HIGH);
+    RotateServo();
+  }
+}
+
+void RotateServo(){
+  for(timer = 0; timer < 400; timer += 1) 
+  {
+    if (timer > 0 && timer < 120) // start rotating servo
+    {
+      myservo.write(timer);
+      delay(15);
+    }
+
+    if (timer > 120 && timer < 130) // shake servo
+    {
+      for(pos = 60; pos < 160; pos += 5)
+      {
+        myservo.write(pos);
+        delay(15);
+      }
+    }
+
+    if (timer > 130 && timer < 400) // stop servo
+    {
+      myservo.write(0);
+      delay(15);
+    }
+
+    if (timer == 400) // restart servo process
+    {
+      timer = 1;
+    }
+    setSeedState(false);
+  }
+}
+
+
+
 
 
