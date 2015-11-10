@@ -71,7 +71,7 @@ void loop()
 
   delay(defaultDelay);
   grondMeting();
-  
+
   postData();
   jsonRequest = "";
 
@@ -88,7 +88,7 @@ void grondMeting() {
   int sensorInt = (int) sensor0P;
   Serial.print("Ground Humidity Procent: "); //vochtigheid van water is max 80 procent
   Serial.println("");
-  jsonRequest = jsonRequest + "\"ground_humidity\": [{ \"value\": " + sensorInt + ", \"timestamp\": 1446723485}]}";
+  jsonRequest = jsonRequest + "\"ground_humidity\": [{ \"value\": " + sensorInt + "}]}";
   Serial.print(sensorInt);
   Serial.print("%");
   Serial.println();
@@ -109,18 +109,14 @@ void luchtVochtTemp() {
     Serial.println("Failed to read from DHT sensor!");
     return;
   }
-
-  // Compute heat index in Fahrenheit (the default)
-  float hif = dht.computeHeatIndex(f, h);
-  // Compute heat index in Celsius (isFahreheit = false)
-  float hic = dht.computeHeatIndex(t, h, false);
   
-  char charVal[10];
-  String airTemperature = dtostrf(t, 1, 1, charVal);
-  String airHumidity = dtostrf(h, 1, 1, charVal);
-  time_t now = now();
+  String airTemp = String((int)t, (unsigned char)DEC);
+  String airHum = String((int)h, (unsigned char)DEC);
   
-  jsonRequest = jsonRequest + "\"temperature\": [{ \"value\": 30,\"unit\": \"C\", \"timestamp\": 1446723485}], \"air_humidity\": [{ \"value\": 50, \"timestamp\": 1446723485}],";
+  float hif = dht.computeHeatIndex(f, h); // Compute heat index in Fahrenheit (the default)
+  float hic = dht.computeHeatIndex(t, h, false); // Compute heat index in Celsius (isFahreheit = false)
+  
+  jsonRequest = jsonRequest + "\"temperature\": [{ \"value\": " + airTemp + ",\"unit\": \"C\"}], \"air_humidity\": [{ \"value\": " + airHum + "}],";
 
   Serial.print("Air Humidity: ");
   Serial.print(h);
