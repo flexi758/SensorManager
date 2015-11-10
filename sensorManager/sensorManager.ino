@@ -6,6 +6,7 @@
 #include <SPI.h>
 
 int groundHumiditySensorInputPin = 0; //analogRead 0 is the analog pin where A0 is connected
+int scheduler = 20000;
 int defaultDelay = 2000;
 int id = 1; // id of the data that read by sensors
 
@@ -16,18 +17,10 @@ IPAddress server(45,55,40,47);
 int serverPort = 80; // server\"s port
 char pageName[] = "/create"; // page on the server
 IPAddress ip(192, 168, 0, 177); // Set the static IP address to use if the DHCP fails to assign
-
 EthernetClient client;
 
 int totalCount = 0; 
-
 String jsonRequest = "";
-
-// set this to the number of milliseconds delay
-// this is 30 seconds
-#define delayMillis 30000UL
-unsigned long thisMillis = 0;
-unsigned long lastMillis = 0;
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -49,8 +42,7 @@ void setup()
   // start the Ethernet connection:
   if (Ethernet.begin(mac) == 0) {
     Serial.println("Failed to configure Ethernet using DHCP");
-    // try to congifure using IP address instead of DHCP:
-    Ethernet.begin(mac, ip);
+    Ethernet.begin(mac, ip); // try to congifure using IP address instead of DHCP:
   }
 
   delay(defaultDelay);
@@ -76,7 +68,7 @@ void loop()
   jsonRequest = "";
 
   id = id + 1;
-  while(true);
+  delay(scheduler);
 }
 
 void grondMeting() {
@@ -149,6 +141,7 @@ void postData() {
     client.print("Content-Length: ");
     client.println(jsonRequest.length()); 
     client.println();
+    Serial.println(jsonRequest);
     client.print(jsonRequest); 
     Serial.println("posted...");
   } else {
