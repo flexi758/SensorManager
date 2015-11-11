@@ -10,10 +10,13 @@
 Servo myservo;  // create servo object to control a servo. A maximum of eight servo objects can be created 
 
 int RELAY = A5;
-
+int delayVal = 0;
 int servoPin = 8;
 int timer = 0;
 int pos;
+float humGround = 0.0;
+float tempAir = 0.0;
+float humAir = 0.0;
 
 int groundHumiditySensorInputPin = 0; //analogRead 0 is the analog pin where A0 is connected
 int scheduler = 20000;
@@ -40,7 +43,7 @@ void setup()
   pinMode(RELAY, OUTPUT);
   Serial.begin(9600);
   myservo.attach(servoPin);
-
+  digitalWrite(RELAY,HIGH);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
@@ -66,6 +69,7 @@ void setup()
 
 void loop()
 {
+  pompOff();
   Serial.println();
   Serial.print("ID: ");
   Serial.println(id);
@@ -82,10 +86,9 @@ void loop()
   jsonRequest = "";
 
   id = id + 1;
-  pompOn();
   setSeedState(true);
   delay(scheduler);
-  pompOff();
+  checkValues();
 }
 
 void grondMeting() {
@@ -95,6 +98,7 @@ void grondMeting() {
 
   float sensor0P = 100.00 - ( ( 100.00 * firstSensor ) / 1023.00 );
   int sensorInt = (int) sensor0P;
+  humGround = sensorInt;
   Serial.print("Ground Humidity Procent: "); //vochtigheid van water is max 80 procent
   Serial.println("");
   jsonRequest = jsonRequest + "\"ground_humidity\": [{ \"value\": " + sensorInt + "}]}";
@@ -102,6 +106,7 @@ void grondMeting() {
   Serial.print("%");
   Serial.println();
 }
+
 
 void luchtVochtTemp() {
 
@@ -112,7 +117,8 @@ void luchtVochtTemp() {
   float t = dht.readTemperature();
   // Read temperature as Fahrenheit (isFahrenheit = true)
   float f = dht.readTemperature(true);
-
+  tempAir = t;
+  humAir = h;
   // Check if any reads failed and exit early (to try again).
   if (isnan(h) || isnan(t) || isnan(f)) {
     Serial.println("Failed to read from DHT sensor!");
@@ -142,6 +148,32 @@ void luchtVochtTemp() {
   Serial.println("F");
 }
 
+//Waardes om te bepalen hoelang er gepompt moet worden, moet nog naar worden gekeken en bepaald wat juist is
+//aan het eind half uur pauze voordat er weer wordt gekeken
+void checkValues() {
+  int totalPompTijd = 0;
+  if(humGround < 30){
+      totalPompTijd += 15;         
+    }
+  if(humAir < 30){
+      totalPompTijd += 5;
+    }
+  if(tempAir < 25){
+      totalPompTijd += 5;
+    }
+    pompOn();
+    delay(totalPompTijd * 1000);
+    pompOff();
+    Serial.println("humGround");
+    Serial.println(humGround);
+    Serial.println("humAir");
+    Serial.println(humAir);
+    Serial.println("tempAir");
+    Serial.println(tempAir);
+    delay(1800000);
+  }
+
+
 /**
  * Method to postData to Webservice
  */
@@ -169,16 +201,16 @@ void postData() {
   }
 
   if (client.connected()) { 
-    client.stop();	// DISCONNECT FROM THE SERVER
+    client.stop();  // DISCONNECT FROM THE SERVER
   }
 }
 
 void pompOn(){
-  digitalWrite(RELAY, HIGH);
+  digitalWrite(RELAY, LOW);
 }
 
 void pompOff(){
-  digitalWrite(RELAY, LOW);
+  digitalWrite(RELAY, HIGH);
 }
 
 void setSeedState(bool state){
@@ -222,8 +254,3 @@ void RotateServo(){
     setSeedState(false);
   }
 }
-
-
-
-
-
