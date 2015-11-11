@@ -10,7 +10,6 @@
 Servo myservo;  // create servo object to control a servo. A maximum of eight servo objects can be created 
 
 int RELAY = A5;
-int delayVal = 0;
 int servoPin = 8;
 int timer = 0;
 int pos;
