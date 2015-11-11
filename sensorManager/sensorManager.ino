@@ -5,35 +5,42 @@
 #include <Ethernet.h> // include ethernet shield library
 #include <SPI.h>
 
+#include <Servo.h> 
+
+Servo myservo;  // create servo object to control a servo. A maximum of eight servo objects can be created 
+
+int RELAY = A5;
+
+int servoPin = 8;
+int timer = 0;
+int pos;
+
 int groundHumiditySensorInputPin = 0; //analogRead 0 is the analog pin where A0 is connected
+int scheduler = 20000;
 int defaultDelay = 2000;
 int id = 1; // id of the data that read by sensors
 
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+byte mac[] = { 
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 //char serverName[] = "45.55.40.47/planten"; // server domain
 IPAddress server(45,55,40,47);
 //String ipServer = "45.55.40.47/planten";
 int serverPort = 80; // server\"s port
 char pageName[] = "/create"; // page on the server
 IPAddress ip(192, 168, 0, 177); // Set the static IP address to use if the DHCP fails to assign
-
 EthernetClient client;
 
 int totalCount = 0; 
-
 String jsonRequest = "";
-
-// set this to the number of milliseconds delay
-// this is 30 seconds
-#define delayMillis 30000UL
-unsigned long thisMillis = 0;
-unsigned long lastMillis = 0;
 
 DHT dht(DHTPIN, DHTTYPE);
 
 void setup()
 {
+  pinMode(RELAY, OUTPUT);
   Serial.begin(9600);
+  myservo.attach(servoPin);
+
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
@@ -49,8 +56,7 @@ void setup()
   // start the Ethernet connection:
   if (Ethernet.begin(mac) == 0) {
     Serial.println("Failed to configure Ethernet using DHCP");
-    // try to congifure using IP address instead of DHCP:
-    Ethernet.begin(mac, ip);
+    Ethernet.begin(mac, ip); // try to congifure using IP address instead of DHCP:
   }
 
   delay(defaultDelay);
@@ -71,12 +77,15 @@ void loop()
 
   delay(defaultDelay);
   grondMeting();
-  
+
   postData();
   jsonRequest = "";
 
   id = id + 1;
-  while(true);
+  pompOn();
+  setSeedState(true);
+  delay(scheduler);
+  pompOff();
 }
 
 void grondMeting() {
@@ -88,7 +97,7 @@ void grondMeting() {
   int sensorInt = (int) sensor0P;
   Serial.print("Ground Humidity Procent: "); //vochtigheid van water is max 80 procent
   Serial.println("");
-  jsonRequest = jsonRequest + "\"ground_humidity\": [{ \"value\": " + sensorInt + ", \"timestamp\": 1446723485}]}";
+  jsonRequest = jsonRequest + "\"ground_humidity\": [{ \"value\": " + sensorInt + "}]}";
   Serial.print(sensorInt);
   Serial.print("%");
   Serial.println();
@@ -110,17 +119,13 @@ void luchtVochtTemp() {
     return;
   }
 
-  // Compute heat index in Fahrenheit (the default)
-  float hif = dht.computeHeatIndex(f, h);
-  // Compute heat index in Celsius (isFahreheit = false)
-  float hic = dht.computeHeatIndex(t, h, false);
-  
-  char charVal[10];
-  String airTemperature = dtostrf(t, 1, 1, charVal);
-  String airHumidity = dtostrf(h, 1, 1, charVal);
-  time_t now = now();
-  
-  jsonRequest = jsonRequest + "\"temperature\": [{ \"value\": 30,\"unit\": \"C\", \"timestamp\": 1446723485}], \"air_humidity\": [{ \"value\": 50, \"timestamp\": 1446723485}],";
+  String airTemp = String((int)t, (unsigned char)DEC);
+  String airHum = String((int)h, (unsigned char)DEC);
+
+  float hif = dht.computeHeatIndex(f, h); // Compute heat index in Fahrenheit (the default)
+  float hic = dht.computeHeatIndex(t, h, false); // Compute heat index in Celsius (isFahreheit = false)
+
+  jsonRequest = jsonRequest + "\"temperature\": [{ \"value\": " + airTemp + ",\"unit\": \"C\"}], \"air_humidity\": [{ \"value\": " + airHum + "}],";
 
   Serial.print("Air Humidity: ");
   Serial.print(h);
@@ -138,11 +143,11 @@ void luchtVochtTemp() {
 }
 
 /**
-  Method to postData to Webservice
-*/
+ * Method to postData to Webservice
+ */
 void postData() {
   //String jsonRequest = "{\"temperature\": [{ \"value\": 6,\"unit\": \"C\", \"timestamp\": 1444498560}], \"air_humidity\": [{ \"value\": 70, \"timestamp\": 1444498560}], \"ground_humidity\": [{ \"value\": 80, \"timestamp\": 1444498560}]}";
-    
+
   if (client.connect(server, serverPort)) { // REPLACE WITH YOUR SERVER ADDRESS
     Serial.println(F("Making HTTP request..."));
     client.println("POST /planten/create HTTP/1.1");
@@ -153,9 +158,11 @@ void postData() {
     client.print("Content-Length: ");
     client.println(jsonRequest.length()); 
     client.println();
+    Serial.println(jsonRequest);
     client.print(jsonRequest); 
     Serial.println("posted...");
-  } else {
+  } 
+  else {
     Serial.println("Connection failed to post");
     Serial.println("Disconnecting.");
     client.stop();
@@ -165,4 +172,58 @@ void postData() {
     client.stop();	// DISCONNECT FROM THE SERVER
   }
 }
+
+void pompOn(){
+  digitalWrite(RELAY, HIGH);
+}
+
+void pompOff(){
+  digitalWrite(RELAY, LOW);
+}
+
+void setSeedState(bool state){
+  if(!state){
+    digitalWrite(servoPin,LOW);
+  }
+  if(state){
+    digitalWrite(servoPin,HIGH);
+    RotateServo();
+  }
+}
+
+void RotateServo(){
+  for(timer = 0; timer < 400; timer += 1) 
+  {
+    if (timer > 0 && timer < 120) // start rotating servo
+    {
+      myservo.write(timer);
+      delay(15);
+    }
+
+    if (timer > 120 && timer < 130) // shake servo
+    {
+      for(pos = 60; pos < 160; pos += 5)
+      {
+        myservo.write(pos);
+        delay(15);
+      }
+    }
+
+    if (timer > 130 && timer < 400) // stop servo
+    {
+      myservo.write(0);
+      delay(15);
+    }
+
+    if (timer == 400) // restart servo process
+    {
+      timer = 1;
+    }
+    setSeedState(false);
+  }
+}
+
+
+
+
 
